@@ -3,3 +3,4 @@
 *.py[cod]
 venv
 __pycache__
+src/cookies

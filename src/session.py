@@ -1,4 +1,3 @@
-from urllib.parse import urljoin
 import random
 from hashlib import md5
 import os
@@ -8,7 +7,8 @@ from lxml import html
 from lxml.etree import ElementTree
 import aiohttp
 
-from settings import ACCOUNTS, PATHS, MAX_AUTH_RETRIES
+from settings import AUTH_ACCOUNTS, PATHS, MAX_AUTH_RETRIES
+from utils import vk_url, ensure_future
 
 
 class AuthError(Exception):
@@ -36,9 +36,9 @@ class AuthRequired(AuthError):
     pass
 
 
-class Authenticator:
+class VkSession:
     def __init__(self):
-        self._auth_phone, self._auth_password = random.choice(ACCOUNTS)  # type: str, str
+        self._auth_phone, self._auth_password = random.choice(AUTH_ACCOUNTS)  # type: str, str
         self._auth_retries: int = 0
         self._saved_check_form: Optional[Dict] = None
 
@@ -72,16 +72,16 @@ class Authenticator:
     @staticmethod
     def _get_form(response: Union[str, ElementTree]):
         if isinstance(response, str):
-            dom = html.fromstring(response)
+            html_tree = html.fromstring(response)
         else:
-            dom = response
+            html_tree = response
 
-        forms = dom.cssselect('form')
+        forms = html_tree.cssselect('form')
         if not len(forms):
             return None
         form = forms[0]
 
-        url = urljoin('https://m.vk.com/', form.get('action'))
+        url = vk_url(form.get('action'))
         field_names = {
             inp.get('name'): inp.get('value', None)
             for inp in form.cssselect('input')
@@ -102,7 +102,7 @@ class Authenticator:
         self._cookie_jar.clear()
 
         async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:
-            async with session.get('https://m.vk.com/login') as response:
+            async with session.get(vk_url('login')) as response:
                 response_body = await response.text()
 
             auth_form = self._get_form(response_body)
@@ -121,7 +121,7 @@ class Authenticator:
             response = await self._try_auth()
         else:
             async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:
-                async with session.get('https://m.vk.com/feed') as response:
+                async with session.get(vk_url('feed')) as response:
                     response = await response.text()
 
         while True:
@@ -141,10 +141,10 @@ class Authenticator:
         return 'login?act=authcheck_code' in response
 
     async def _auth_security_check(self, response: str):
-        dom = html.fromstring(response)
-        self._saved_check_form = self._get_form(dom)
+        html_tree = html.fromstring(response)
+        self._saved_check_form = self._get_form(html_tree)
 
-        prefixes = dom.cssselect('.field_prefix')
+        prefixes = html_tree.cssselect('.field_prefix')
         is_phone_check = (
             len(prefixes) == 2
             and self._auth_phone.startswith(prefixes[0].text)
@@ -174,12 +174,14 @@ class Authenticator:
 
         return response
 
+    # A workaround for tornado (with asyncio loop) + aiohttp working
+    @ensure_future
     async def get(self, url, **kwargs):
         if not self._has_cookie:
             raise AuthRequired()
 
         async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:
-            async with session.get(url, **kwargs) as response:
+            async with session.get(vk_url(url), **kwargs) as response:
                 response = await response.text()
 
         if not self._is_authenticated(response):
@@ -190,10 +192,10 @@ class Authenticator:
 
 
 async def main():
-    auth = Authenticator()
+    session = VkSession()
     try:
-        await auth.auth()
-        response = await auth.get('https://m.vk.com/feed')
+        await session.auth()
+        response = await session.get('feed')
     except CheckRequiresUserIntervention as ex:
         form = {}
         for field, value in ex.form.items():
@@ -201,7 +203,7 @@ async def main():
                 form[field] = input(field + ': ')
             else:
                 form[field] = value
-        response = await auth.complete_security_check(**form)
+        response = await session.complete_security_check(**form)
 
     print('Success!')
     print(response)
