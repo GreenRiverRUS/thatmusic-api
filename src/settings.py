@@ -3,7 +3,7 @@ from utils import crc32, md5
 MAX_AUTH_RETRIES = 3
 
 PATHS = {
-    'cookie': 'cookies/{}'
+    'cookie': 'cookies',
 }
 
 AUTH_ACCOUNTS = [

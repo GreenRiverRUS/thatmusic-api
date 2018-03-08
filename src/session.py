@@ -42,7 +42,8 @@ class VkSession:
         self._auth_retries: int = 0
         self._saved_check_form: Optional[Dict] = None
 
-        self._cookie_path: str = PATHS['cookie'].format(
+        self._cookie_path: str = os.path.join(
+            PATHS['cookie'],
             md5(self._auth_phone.encode()).hexdigest()
         )
         os.makedirs(os.path.split(self._cookie_path)[0], exist_ok=True)
