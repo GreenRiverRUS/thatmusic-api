@@ -8,6 +8,8 @@ import aiohttp
 from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
 
+from utils import decode_vk_mp3_url, uni_hash
+
 
 # TODO add S3 support
 # noinspection PyAbstractClass
@@ -117,7 +119,8 @@ class DownloadHandler(CachedHandler):
 
         self._cache_audio_item(audio_item)
 
-        # TODO mp3 url decoder support
+        if DOWNLOAD_SETTINGS['mp3_decoder_enabled']:
+            audio_item['mp3'] = decode_vk_mp3_url(audio_item['mp3'], audio_item['user_id'])
         return audio_item
 
     @staticmethod

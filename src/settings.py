@@ -1,9 +1,13 @@
+import os
+
 
 MAX_AUTH_RETRIES = 3
 
 PATHS = {
     'cookie': 'cookies',
-    'mp3': 'data'
+    'mp3': 'data',
+    'nodejs': os.getenv('NODEJS_PATH', 'node'),
+    'decode-js': 'decode.js',
 }
 
 AUTH_ACCOUNTS = [
@@ -35,6 +39,7 @@ SEARCH_SETTINGS = {
 }
 
 DOWNLOAD_SETTINGS = {
+    'mp3_decoder_enabled': True,
     'timeout': 60
 }
 

@@ -1,4 +1,5 @@
 import hashlib
+import subprocess
 from typing import Union
 from urllib.parse import urljoin
 import binascii
@@ -55,3 +56,11 @@ def uni_hash(hash_func: str, string):
         return md5(string)
 
     raise ValueError('Unknown hash function: {}'.format(hash_func))
+
+
+def decode_vk_mp3_url(url: str, user_id: str):
+    nodejs = PATHS['nodejs']
+    decoder_js = PATHS['decode-js']
+
+    process = subprocess.run([nodejs, decoder_js, url, user_id], stdout=subprocess.PIPE)
+    return process.stdout.decode()
