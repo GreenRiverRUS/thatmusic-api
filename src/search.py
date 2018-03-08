@@ -18,6 +18,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         super().__init__(application, request, **kwargs)
         self._vk_session = VkSession()
 
+    @web.addslash
     async def get(self, *args, **kwargs):
         query = self.get_argument('q', '')
         page = self.get_argument('page', '0')
@@ -26,7 +27,7 @@ class SearchHandler(BasicHandler, CachedHandler):
             if page < 0:
                 raise ValueError()
         except ValueError:
-            pass
+            pass  # TODO
 
         try:
             data = await self.search(query, page)
@@ -36,7 +37,7 @@ class SearchHandler(BasicHandler, CachedHandler):
                 'data': data
             })
         except AuthError:
-            pass
+            pass  # TODO
 
     async def search(self, query: str, page: int):
         cache_key = self._get_cache_key(query, page)
