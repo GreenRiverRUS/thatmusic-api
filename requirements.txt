@@ -1,3 +1,4 @@
+beaker
 beautifulsoup4
 tornado==5.0
 aiohttp

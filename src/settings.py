@@ -16,6 +16,13 @@ HASH = {
     'mp3': 'md5'
 }
 
+CACHE_SETTINGS = {
+    'cache.type': 'memory',
+    'cache.regions': 'search_pages, audio_items',
+    'cache.search_pages.expire': 24 * 60,  # in minutes
+    'cache.audio_items.expire': None  # never
+}
+
 SEARCH_SETTINGS = {
     'popular_enabled': False,
     'page_size': 50,

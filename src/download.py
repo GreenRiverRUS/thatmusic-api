@@ -15,6 +15,7 @@ class DownloadHandler(CachedHandler):
     def __init__(self, application, request, **kwargs):
         super().__init__(application, request, **kwargs)
         self._cache_path = PATHS['mp3']
+        os.makedirs(self._cache_path, exist_ok=True)
 
     @web.addslash
     async def get(self, *args, **kwargs):

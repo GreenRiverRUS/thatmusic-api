@@ -1,13 +1,23 @@
 from typing import Optional, List, Dict
 
 from tornado.web import RequestHandler
+from beaker.cache import CacheManager
+from beaker.util import parse_cache_config_options
 
-from settings import HASH
+from settings import HASH, CACHE_SETTINGS
 from utils import md5, uni_hash
 
 
 # noinspection PyAbstractClass
 class CachedHandler(RequestHandler):
+    def __init__(self, application, request, **kwargs):
+        super().__init__(application, request, **kwargs)
+        cache_manager = CacheManager(
+            **parse_cache_config_options(CACHE_SETTINGS)
+        )
+        self._search_pages_cache = cache_manager.get_cache_region('default', 'search_pages')
+        self._audio_items_cache = cache_manager.get_cache_region('default', 'audio_items')
+
     @staticmethod
     def _get_search_cache_key(query: str, page: int):
         if not len(query):
@@ -15,18 +25,20 @@ class CachedHandler(RequestHandler):
 
         return uni_hash(HASH['cache'], '{}.{}'.format(query, page))
 
-    # TODO
     def _get_cached_search_result(self, cache_key: str) -> Optional[List[Dict]]:
-        return None
+        try:
+            return self._search_pages_cache.get(cache_key)
+        except KeyError:
+            return None
 
-    # TODO
     def _cache_search_result(self, cache_key: str, result: List[Dict]):
-        pass
+        self._search_pages_cache.put(cache_key, result)
 
-    # TODO
     def _get_audio_item_cache(self, audio_id: str):
-        return None
+        try:
+            return self._audio_items_cache.get(audio_id)
+        except KeyError:
+            return None
 
-    # TODO
     def _cache_audio_item(self, item: Dict):
-        pass
+        self._audio_items_cache.put(item['id'], item)
