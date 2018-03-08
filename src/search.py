@@ -1,33 +1,19 @@
 import random
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict
 from urllib.parse import quote
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
+from bs4.element import Tag
+from tornado import web
 
+from cache import CachedHandler
 from session import VkSession, AuthError
 from settings import SEARCH_SETTINGS, HASH, ARTISTS
-from utils import BasicHandler, md5
+from utils import BasicHandler
 
 
-class CachedHandler(BasicHandler):
-    @staticmethod
-    def _get_cache_key(query: str, page: int):
-        if not len(query):
-            query = md5('popular')
-
-        return HASH['cache']('{}.{}'.format(query, page))
-
-    # TODO
-    def _get_cached_search_result(self, query: str, page: int) -> Optional[List[Dict]]:
-        return None
-
-    # TODO
-    def _cache_search_result(self, query: str, page: int, result: List[Dict]):
-        pass
-
-
-class SearchHandler(CachedHandler):
+class SearchHandler(BasicHandler, CachedHandler):
     def __init__(self, application, request, **kwargs):
         super().__init__(application, request, **kwargs)
         self._vk_session = VkSession()
@@ -53,7 +39,8 @@ class SearchHandler(CachedHandler):
             pass
 
     async def search(self, query: str, page: int):
-        cached_result = self._get_cached_search_result(query, page)
+        cache_key = self._get_cache_key(query, page)
+        cached_result = self._get_cached_search_result(cache_key)
         if cached_result is not None:
             return self._transform_search_response(query, page, cached_result)
 
@@ -67,7 +54,7 @@ class SearchHandler(CachedHandler):
                 break
             result += curr_result
 
-        self._cache_search_result(query, page, result)
+        self._cache_search_result(cache_key, result)
         return self._transform_search_response(query, page, result)
 
     async def _get_search_results(self, query: str, offset: int):
