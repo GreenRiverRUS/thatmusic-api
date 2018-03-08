@@ -6,10 +6,10 @@ from typing import Optional, Union, Dict
 from lxml import html
 from lxml.etree import ElementTree
 import aiohttp
+from tornado import web
 
 from settings import AUTH_ACCOUNTS, PATHS, MAX_AUTH_RETRIES
-from utils import vk_url, setup_logger
-
+from utils import vk_url, setup_logger, BasicHandler, logged
 
 logger = setup_logger('auth')
 
@@ -18,9 +18,9 @@ class AuthError(Exception):
     pass
 
 
-class CheckRequiresUserIntervention(AuthError):
+class TwoFactorAuth(AuthError):
     def __init__(self, form_fields):
-        self.form = form_fields
+        self.form_fields = form_fields
 
 
 class UnableToAuthorize(AuthError):
@@ -28,10 +28,6 @@ class UnableToAuthorize(AuthError):
 
 
 class FieldsMismatchSavedCheckForm(AuthError):
-    pass
-
-
-class NoSavedCheckForm(AuthError):
     pass
 
 
@@ -121,6 +117,7 @@ class VkSession:
         return response_body
 
     async def auth(self):
+        logger.debug('Authorizing (attempt={})'.format(self._auth_retries))
         if not self._has_cookie:
             response = await self._try_auth()
         else:
@@ -129,14 +126,16 @@ class VkSession:
                     response = await response.text()
 
         while True:
+            if self._auth_retries >= MAX_AUTH_RETRIES:
+                logger.error('Reached max auth retries')
+                raise UnableToAuthorize()
+
             if self._is_security_check(response):
+                logger.debug('Met security check')
                 response = await self._auth_security_check(response)
 
             if self._is_authenticated(response):
                 break
-
-            if self._auth_retries >= MAX_AUTH_RETRIES:
-                raise UnableToAuthorize()
 
             response = await self._try_auth()
 
@@ -160,15 +159,26 @@ class VkSession:
             code = self._auth_phone[len(prefixes[0].text) - 1:-len(prefixes[1].text)]
             return await self.complete_security_check(code=code)
 
-        raise CheckRequiresUserIntervention(self._saved_check_form['fields'])
+        logger.debug('Unknown security check. User required to pass second factor')
+        raise TwoFactorAuth(self.get_saved_check_form_empty_fields())
 
-    async def complete_security_check(self, **form):
+    def get_saved_check_form_empty_fields(self):
         if self._saved_check_form is None:
-            raise NoSavedCheckForm()
-        if set(self._saved_check_form['fields'].keys()) != set(form.keys()):
+            raise AuthRequired()
+        return set(k for k, v in self._saved_check_form['fields'].items() if v is None)
+
+    def _build_check_form(self, **kwargs):
+        if self.get_saved_check_form_empty_fields() != set(kwargs.keys()):
             raise FieldsMismatchSavedCheckForm()
 
-        response = await self._post_form(self._saved_check_form['url'], **form)
+        form_url = self._saved_check_form['url']
+        form_fields = dict(self._saved_check_form['fields'])
+        form_fields.update(kwargs)
+        return form_url, form_fields
+
+    async def complete_security_check(self, **form):
+        form_url, form_fields = self._build_check_form(**form)
+        response = await self._post_form(form_url, **form_fields)
         self._saved_check_form = None
         self._save_cookie()
 
@@ -193,26 +203,54 @@ class VkSession:
         return response
 
 
-async def main():
-    session = VkSession()
-    try:
-        await session.auth()
-        response = await session.get('feed')
-    except CheckRequiresUserIntervention as ex:
-        form = {}
-        for field, value in ex.form.items():
-            if value is None:
-                form[field] = input(field + ': ')
-            else:
-                form[field] = value
-        response = await session.complete_security_check(**form)
+class AuthHandler(BasicHandler):
+    @web.addslash
+    @logged(logger)
+    async def get(self, *args, **kwargs):
+        vk_session = self.settings['vk_session']  # type: VkSession
+        try:
+            await vk_session.auth()
+            self.write_result({'success': 1})
+        except TwoFactorAuth as ex:
+            self.write_result({
+                'success': 0,
+                'error': 'Unauthorized. Auth asks {}: {}'.format(
+                    ', '.join(ex.form_fields),
+                    self.reverse_full_url('auth_second_factor')
+                ),
+                'error_code': 401
+            })
+        except UnableToAuthorize:
+            self.write_result({
+                'success': 0,
+                'error': 'No retries left. Sorry :(',
+                'error_code': 503
+            })
 
-    print('Success!')
-    print(response)
 
-
-if __name__ == '__main__':
-    import asyncio
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+class AuthSecondStepHandler(BasicHandler):
+    @web.addslash
+    @logged(logger)
+    async def get(self, *args, **kwargs):
+        vk_session = self.settings['vk_session']  # type: VkSession
+        try:
+            form = {}
+            for field_name in vk_session.get_saved_check_form_empty_fields():
+                form[field_name] = self.get_argument(field_name)
+            await vk_session.complete_security_check(**form)
+            self.write_result({'success': 1})
+        except web.MissingArgumentError as ex:
+            self.write_result({
+                'success': 0,
+                'error': 'Missing query argument \'{}\''.format(
+                    ex.arg_name
+                )
+            })
+        except AuthRequired:
+            self.write_result({
+                'success': 0,
+                'error': 'Unauthorized. Auth required: {}'.format(
+                    self.reverse_full_url('auth')
+                ),
+                'error_code': 401
+            })

@@ -8,7 +8,7 @@ from bs4.element import Tag
 from tornado import web
 
 from cache import CachedHandler
-from session import VkSession, AuthError
+from session import VkSession, AuthRequired
 from settings import SEARCH_SETTINGS, HASH, ARTISTS
 from utils import BasicHandler, uni_hash, setup_logger, logged
 
@@ -17,10 +17,6 @@ logger = setup_logger('search')
 
 
 class SearchHandler(BasicHandler, CachedHandler):
-    def __init__(self, application, request, **kwargs):
-        super().__init__(application, request, **kwargs)
-        self._vk_session = VkSession()
-
     @web.addslash
     @logged(logger)
     async def get(self, *args, **kwargs):
@@ -31,7 +27,11 @@ class SearchHandler(BasicHandler, CachedHandler):
             if page < 0:
                 raise ValueError()
         except ValueError:
-            pass  # TODO
+            self.write_result({
+                'success': 0,
+                'error': '\'page\' must be a non-negative integer'
+            })
+            return
 
         try:
             data = await self.search(query, page)
@@ -40,8 +40,14 @@ class SearchHandler(BasicHandler, CachedHandler):
                 'success': 1,
                 'data': data
             })
-        except AuthError:
-            pass  # TODO
+        except AuthRequired:
+            self.write_result({
+                'success': 0,
+                'error': 'Unauthorized. Auth required: {}'.format(
+                    self.reverse_full_url('auth')
+                ),
+                'error_code': 401
+            })
 
     async def search(self, query: str, page: int):
         cache_key = self._get_search_cache_key(query, page)
@@ -71,8 +77,9 @@ class SearchHandler(BasicHandler, CachedHandler):
 
         query = quote(query)
 
+        vk_session = self.settings['vk_session']  # type: VkSession
         logger.debug('Requesting search page from vk...')
-        return await self._vk_session.get(
+        return await vk_session.get(
             'audio?act=search&q={}&offset={}'.format(query, offset)
         )
 
@@ -81,8 +88,9 @@ class SearchHandler(BasicHandler, CachedHandler):
         return random.choice(ARTISTS)
 
     async def _get_popular(self, offset: int):
+        vk_session = self.settings['vk_session']  # type: VkSession
         logger.debug('Searching popular in vk...')
-        return await self._vk_session.get(
+        return await vk_session.get(
             'audio?act=popular&offset={}'.format(offset)
         )
 
