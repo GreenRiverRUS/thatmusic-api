@@ -4,6 +4,7 @@ MAX_AUTH_RETRIES = 3
 
 PATHS = {
     'cookie': 'cookies',
+    'mp3': 'data'
 }
 
 AUTH_ACCOUNTS = [
@@ -27,6 +28,9 @@ SEARCH_SETTINGS = {
     'bad_words_regex': '(?i)(https?:\/\/)?(vkontakte|vk)\.?(com|ru)?\/?(club|id)?',
 }
 
+DOWNLOAD_SETTINGS = {
+    'timeout': 60
+}
 
 # Random artist search
 ARTISTS = [
