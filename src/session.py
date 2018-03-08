@@ -8,7 +8,10 @@ from lxml.etree import ElementTree
 import aiohttp
 
 from settings import AUTH_ACCOUNTS, PATHS, MAX_AUTH_RETRIES
-from utils import vk_url
+from utils import vk_url, setup_logger
+
+
+logger = setup_logger('auth')
 
 
 class AuthError(Exception):

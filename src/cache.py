@@ -5,7 +5,10 @@ from beaker.cache import CacheManager
 from beaker.util import parse_cache_config_options
 
 from settings import HASH, CACHE_SETTINGS
-from utils import md5, uni_hash
+from utils import md5, uni_hash, setup_logger
+
+
+logger = setup_logger('cache')
 
 
 # noinspection PyAbstractClass
@@ -26,19 +29,23 @@ class CachedHandler(RequestHandler):
         return uni_hash(HASH['cache'], '{}.{}'.format(query, page))
 
     def _get_cached_search_result(self, cache_key: str) -> Optional[List[Dict]]:
+        logger.debug('Trying to get search result from cache...')
         try:
             return self._search_pages_cache.get(cache_key)
         except KeyError:
             return None
 
     def _cache_search_result(self, cache_key: str, result: List[Dict]):
+        logger.debug('Store search result into cache...')
         self._search_pages_cache.put(cache_key, result)
 
     def _get_audio_item_cache(self, audio_id: str):
+        logger.debug('Trying to get audio item from cache...')
         try:
             return self._audio_items_cache.get(audio_id)
         except KeyError:
             return None
 
     def _cache_audio_item(self, item: Dict):
+        logger.debug('Store audio item into cache...')
         self._audio_items_cache.put(item['id'], item)

@@ -10,7 +10,10 @@ from tornado import web
 from cache import CachedHandler
 from session import VkSession, AuthError
 from settings import SEARCH_SETTINGS, HASH, ARTISTS
-from utils import BasicHandler, uni_hash
+from utils import BasicHandler, uni_hash, setup_logger, logged
+
+
+logger = setup_logger('search')
 
 
 class SearchHandler(BasicHandler, CachedHandler):
@@ -19,6 +22,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         self._vk_session = VkSession()
 
     @web.addslash
+    @logged(logger)
     async def get(self, *args, **kwargs):
         query = self.get_argument('q', '')
         page = self.get_argument('page', '0')
@@ -46,7 +50,8 @@ class SearchHandler(BasicHandler, CachedHandler):
             return self._transform_search_response(query, page, cached_result)
 
         result = []
-        for _ in range(SEARCH_SETTINGS['page_multiplier']):
+        for i in range(SEARCH_SETTINGS['page_multiplier']):
+            logger.debug('Trying page {} (size={})...'.format(i, SEARCH_SETTINGS['page_size']))
             response = await self._get_search_results(
                 query, offset=page * SEARCH_SETTINGS['page_size']
             )
@@ -66,6 +71,7 @@ class SearchHandler(BasicHandler, CachedHandler):
 
         query = quote(query)
 
+        logger.debug('Requesting search page from vk...')
         return await self._vk_session.get(
             'audio?act=search&q={}&offset={}'.format(query, offset)
         )
@@ -75,6 +81,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         return random.choice(ARTISTS)
 
     async def _get_popular(self, offset: int):
+        logger.debug('Searching popular in vk...')
         return await self._vk_session.get(
             'audio?act=popular&offset={}'.format(offset)
         )
@@ -107,6 +114,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         return result
 
     def _transform_search_response(self, query: str, page: int, data: List[Dict]):
+        logger.debug('Transforming search response...')
         sortable = not self._is_bad_match([query])
 
         head, tail = [], []

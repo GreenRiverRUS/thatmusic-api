@@ -1,12 +1,20 @@
+import asyncio
 import hashlib
 import subprocess
+from functools import wraps
 from typing import Union
 from urllib.parse import urljoin
 import binascii
+import logging
 
 from tornado import web
 
 from settings import PATHS
+
+
+basic_stream_handler = logging.StreamHandler()
+basic_stream_handler.setFormatter(logging.Formatter('%(levelname)-8s %(asctime)s %(message)s'))
+basic_stream_handler.setLevel(logging.DEBUG)
 
 
 class BasicHandler(web.RequestHandler):
@@ -31,6 +39,40 @@ class BasicHandler(web.RequestHandler):
     def reverse_full_url(self, name, *args):
         host_url = "{protocol}://{host}".format(**vars(self.request))
         return urljoin(host_url, self.reverse_url(name, *args))
+
+
+def setup_logger(name, lvl=logging.DEBUG):
+    logger = logging.getLogger(name)
+    logger.setLevel(lvl)
+    logger.addHandler(basic_stream_handler)
+    logger.propagate = False
+    return logger
+
+
+def logged(logger=setup_logger('default')):
+    def wrapper(method):
+        if asyncio.iscoroutinefunction(method):
+            @wraps(method)
+            async def wrapped(*args, **kwargs):
+                self = args[0]  # type: BasicHandler
+                logger.info('{} request from {}: {}'.format(method.__name__.capitalize(),
+                                                            self.request.remote_ip,
+                                                            self.request.uri))
+                logger.info('Request body: {}'.format(self.request.body.decode()))
+                await method(*args, **kwargs)
+                logger.info('Response sent')
+        else:
+            @wraps(method)
+            def wrapped(*args, **kwargs):
+                self = args[0]  # type: BasicHandler
+                logger.info('{} request from {}: {}'.format(method.__name__.capitalize(),
+                                                            self.request.remote_ip,
+                                                            self.request.uri))
+                logger.info('Request body: {}'.format(self.request.body.decode()))
+                method(*args, **kwargs)
+                logger.info('Response sent')
+        return wrapped
+    return wrapper
 
 
 def vk_url(path: str):
