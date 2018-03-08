@@ -20,6 +20,7 @@ HASH = {
     'mp3': 'md5'
 }
 
+# TODO change cache type
 CACHE_SETTINGS = {
     'cache.type': 'memory',
     'cache.regions': 'search_pages, audio_items',
