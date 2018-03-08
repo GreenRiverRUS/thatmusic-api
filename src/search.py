@@ -53,7 +53,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         for i in range(SEARCH_SETTINGS['page_multiplier']):
             logger.debug('Trying page {} (size={})...'.format(i, SEARCH_SETTINGS['page_size']))
             response = await self._get_search_results(
-                query, offset=page * SEARCH_SETTINGS['page_size']
+                query, offset=(i + 1) * page * SEARCH_SETTINGS['page_size']
             )
             curr_result = self._get_audio_items(response)
             if not len(curr_result):

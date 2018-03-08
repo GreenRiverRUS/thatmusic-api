@@ -29,7 +29,7 @@ CACHE_SETTINGS = {
 
 SEARCH_SETTINGS = {
     'popular_enabled': False,
-    'page_size': 50,
+    'page_size': 20,
     'page_multiplier': 2,
     'sort_regex': r'(?i)[ \[\],.:\)\(\-_](bass ?boost(ed)?|dub sound|remake|low bass'
                   r'|cover|(re)?mix|dj|bootleg|edit|aco?ustic|instrumental|karaoke'
