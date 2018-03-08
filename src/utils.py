@@ -45,9 +45,3 @@ def md5(string: Union[str, bytes]):
     if isinstance(string, str):
         string = string.encode()
     return hashlib.md5(string).hexdigest()
-
-
-def ensure_future(func):
-    async def wrapper(*args, **kwargs):
-        return await asyncio.ensure_future(func(*args, **kwargs))
-    return wrapper

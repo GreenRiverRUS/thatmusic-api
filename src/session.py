@@ -8,7 +8,7 @@ from lxml.etree import ElementTree
 import aiohttp
 
 from settings import AUTH_ACCOUNTS, PATHS, MAX_AUTH_RETRIES
-from utils import vk_url, ensure_future
+from utils import vk_url
 
 
 class AuthError(Exception):
@@ -174,8 +174,6 @@ class VkSession:
 
         return response
 
-    # A workaround for tornado (with asyncio loop) + aiohttp working
-    @ensure_future
     async def get(self, url, **kwargs):
         if not self._has_cookie:
             raise AuthRequired()

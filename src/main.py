@@ -1,12 +1,10 @@
 import asyncio
-from tornado.platform.asyncio import AsyncIOMainLoop
 from tornado.web import url, Application
 from search import SearchHandler
 
 
 def main():
     loop = asyncio.get_event_loop()
-    AsyncIOMainLoop().install()
 
     app = Application(
         handlers=[
