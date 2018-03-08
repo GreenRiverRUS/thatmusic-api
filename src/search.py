@@ -72,6 +72,14 @@ class SearchHandler(BasicHandler, CachedHandler):
         query = quote(query)
 
         logger.debug('Requesting search page from vk...')
+        # res = await self._vk_session.post(
+        #     'audio?act=search&q={}&offset={}'.format(query, offset),
+        #     headers={'x-requested-with': 'XMLHttpRequest'},
+        #     data='act=search&q={}&offset={}'.format(query, offset)
+        # )
+        # logger.debug(res)
+        #
+        # return json.loads(res)[4]
         return await self._vk_session.get(
             'audio?act=search&q={}&offset={}'.format(query, offset)
         )

@@ -192,6 +192,22 @@ class VkSession:
 
         return response
 
+    # async def post(self, url, **kwargs):
+    #     if not self._has_cookie:
+    #         raise AuthRequired()
+    #
+    #     logger.debug(self._cookie_jar._cookies)
+    #
+    #     async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:
+    #         async with session.post(vk_url(url), **kwargs) as response:
+    #             response = await response.text()
+    #
+    #     # if not self._is_authenticated(response):
+    #     #     self._clear_cookie()
+    #     #     raise AuthRequired()
+    #
+    #     return response
+
 
 async def main():
     session = VkSession()
