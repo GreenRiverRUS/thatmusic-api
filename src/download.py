@@ -55,7 +55,7 @@ class DownloadHandler(CachedHandler):
             with open(path, 'wb') as f:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url, timeout=DOWNLOAD_SETTINGS['timeout']) as response:
-                        for chunk in response.content.iter_chunked(64 * 1024):
+                        async for chunk in response.content.iter_chunked(64 * 1024):
                             f.write(chunk)
         except aiohttp.ClientError:
             if os.path.exists(path):
@@ -121,7 +121,7 @@ class DownloadHandler(CachedHandler):
 
     @staticmethod
     def _build_file_path(audio_id: str):
-        file_name = '{}.mp3'.format(HASH['mp3'](audio_id))
+        file_name = '{}.mp3'.format(uni_hash(HASH['mp3'], audio_id))
         file_path = os.path.join(PATHS['mp3'], file_name)
         return file_path
 

@@ -10,7 +10,7 @@ from tornado import web
 from cache import CachedHandler
 from session import VkSession, AuthError
 from settings import SEARCH_SETTINGS, HASH, ARTISTS
-from utils import BasicHandler
+from utils import BasicHandler, uni_hash
 
 
 class SearchHandler(BasicHandler, CachedHandler):
@@ -40,7 +40,7 @@ class SearchHandler(BasicHandler, CachedHandler):
             pass  # TODO
 
     async def search(self, query: str, page: int):
-        cache_key = self._get_cache_key(query, page)
+        cache_key = self._get_search_cache_key(query, page)
         cached_result = self._get_cached_search_result(cache_key)
         if cached_result is not None:
             return self._transform_search_response(query, page, cached_result)
@@ -93,7 +93,7 @@ class SearchHandler(BasicHandler, CachedHandler):
             mp3 = audio.select_one('input[type=hidden]')['value']
 
             audio_id = audio['data-id'].rsplit('_', maxsplit=1)[0]
-            audio_id = HASH['id'](audio_id)
+            audio_id = uni_hash(HASH['id'], audio_id)
 
             result.append({
                 'id': audio_id,
@@ -110,7 +110,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         sortable = not self._is_bad_match([query])
 
         head, tail = [], []
-        cache_key = self._get_cache_key(query, page)
+        cache_key = self._get_search_cache_key(query, page)
         for audio in data:
             download_url = self.reverse_full_url('download', cache_key, audio['id'])
             stream_url = self.reverse_full_url('stream', cache_key, audio['id'])

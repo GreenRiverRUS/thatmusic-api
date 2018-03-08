@@ -1,4 +1,3 @@
-from utils import crc32, md5
 
 MAX_AUTH_RETRIES = 3
 
@@ -12,9 +11,9 @@ AUTH_ACCOUNTS = [
 ]
 
 HASH = {
-    'cache': crc32,
-    'id': crc32,
-    'mp3': md5
+    'cache': 'crc32',
+    'id': 'crc32',
+    'mp3': 'md5'
 }
 
 SEARCH_SETTINGS = {

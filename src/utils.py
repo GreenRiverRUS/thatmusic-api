@@ -1,10 +1,11 @@
-import asyncio
 import hashlib
 from typing import Union
 from urllib.parse import urljoin
 import binascii
 
 from tornado import web
+
+from settings import PATHS
 
 
 class BasicHandler(web.RequestHandler):
@@ -45,3 +46,12 @@ def md5(string: Union[str, bytes]):
     if isinstance(string, str):
         string = string.encode()
     return hashlib.md5(string).hexdigest()
+
+
+def uni_hash(hash_func: str, string):
+    if hash_func == 'crc32':
+        return crc32(string)
+    elif hash_func == 'md5':
+        return md5(string)
+
+    raise ValueError('Unknown hash function: {}'.format(hash_func))
