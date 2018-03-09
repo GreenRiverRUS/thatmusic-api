@@ -79,22 +79,20 @@ class DownloadHandler(CachedHandler):
         if not self._check_valid_mp3(path):
             raise web.HTTPError(404)
 
-        self._set_headers(path, file_name)
-        # TODO check
-        if stream:
-            for chunk in self._get_content(path):
-                self.write(chunk)
+        self._set_headers(path, file_name, stream)
+        for chunk in self._get_content(path):
+            self.write(chunk)
+            if stream:
                 await self.flush()
-        else:
-            with open(path, 'rb') as f:
-                self.write(f.read())
+        if not stream:
             await self.flush()
 
-    def _set_headers(self, path: str, file_name: str):
+    def _set_headers(self, path: str, file_name: str, stream: bool):
         self.set_header('Cache-Control', 'private')
         self.set_header('Cache-Description', 'File Transfer')
         self.set_header('Content-Type', 'audio/mpeg')
-        self.set_header('Content-Length', self._get_content_size(path))
+        if not stream:
+            self.set_header('Content-Length', self._get_content_size(path))
         self.set_header('Content-Disposition', 'attachment; filename={}'.format(file_name))
 
     @staticmethod
