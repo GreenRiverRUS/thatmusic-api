@@ -1,0 +1,16 @@
+version: '2'
+
+volumes:
+  auth_data:
+  audio_cache:
+
+services:
+  backend:
+    build: src
+    image: thatmusic_backend
+    restart: always
+    volumes:
+      - auth_data:/auth
+      - audio_cache:/cache
+    ports:
+      - 8000:8000
