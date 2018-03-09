@@ -5,7 +5,7 @@ MAX_AUTH_RETRIES = 3
 
 PATHS = {
     'cookie': 'cookies',
-    'mp3': 'data',
+    'mp3': '/cache/audio_data',
     'nodejs': os.getenv('NODEJS_PATH', 'node'),
     'decode-js': 'decode.js',
 }
@@ -20,11 +20,12 @@ HASH = {
     'mp3': 'md5'
 }
 
-# TODO change cache type
 CACHE_SETTINGS = {
-    'cache.type': 'memory',
     'cache.regions': 'search_pages, audio_items',
+    'cache.search_pages.type': 'memory',
     'cache.search_pages.expire': 24 * 60,  # in minutes
+    'cache.audio_items.type': 'dbm',
+    'cache.audio_items.data_dir': '/cache/audio_items',
     'cache.audio_items.expire': None  # never
 }
 
