@@ -48,19 +48,20 @@ class VkSession:
         os.makedirs(os.path.split(self._cookie_path)[0], exist_ok=True)
 
         self._cookie_jar = aiohttp.CookieJar()
-        if self._has_cookie:
+        if os.path.exists(self._cookie_path):
             self._cookie_jar.load(self._cookie_path)
 
     @property
     def _has_cookie(self) -> bool:
-        return os.path.exists(self._cookie_path)
+        return len(self._cookie_jar) > 0
 
     def _save_cookie(self):
         self._cookie_jar.save(self._cookie_path)
 
     def _clear_cookie(self):
-        self._cookie_jar.clear()
-        os.remove(self._cookie_path)
+        if self._has_cookie:
+            self._cookie_jar.clear()
+            os.remove(self._cookie_path)
 
     async def _post_form(self, url: str, **kwargs):
         async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:

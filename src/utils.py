@@ -1,8 +1,9 @@
 import asyncio
 import hashlib
+import re
 import subprocess
 from functools import wraps
-from typing import Union
+from typing import Union, Optional
 from urllib.parse import urljoin
 import binascii
 import logging
@@ -91,6 +92,14 @@ def md5(string: Union[str, bytes]):
     return hashlib.md5(string).hexdigest()
 
 
+def md5_file(file_name, chunk_size=4096):
+    hash_md5 = hashlib.md5()
+    with open(file_name, 'rb') as f:
+        for chunk in iter(lambda: f.read(chunk_size), b''):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+
 def uni_hash(hash_func: str, string):
     if hash_func == 'crc32':
         return crc32(string)
@@ -106,3 +115,22 @@ def decode_vk_mp3_url(url: str, user_id: str):
 
     process = subprocess.run([nodejs, decoder_js, url, user_id], stdout=subprocess.PIPE)
     return process.stdout.decode()
+
+
+def sanitize(string, to_lower: bool = True, alpha_numeric_only: bool = False, truncate: Optional[int] = None):
+    if alpha_numeric_only:
+        string = re.sub(r'\w+', '', string)
+    else:
+        bad_chars = ['~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '=', '+',
+                     '[', '{', ']', '}', '\\', '|', ';', ':', '"', "'", '—', '–', ',', '<', '>', '/', '?',
+                     '‘', '’', '“', '”']
+        string = re.sub(r'|'.join(bad_chars), '', string)
+
+    string = string.strip()
+
+    if to_lower:
+        string = string.lower()
+    if truncate is not None:
+        string = string[:truncate]
+
+    return string

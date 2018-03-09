@@ -4,11 +4,12 @@ from typing import Dict
 
 from tornado import web
 import aiohttp
+import magic
 
 from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
 
-from utils import decode_vk_mp3_url, uni_hash, setup_logger, logged
+from utils import decode_vk_mp3_url, uni_hash, sanitize, setup_logger, logged, md5_file
 
 
 logger = setup_logger('download')
@@ -43,7 +44,7 @@ class DownloadHandler(CachedHandler):
             else:
                 audio_name = self._format_audio_name(audio_item)
 
-            await self._download_from_local_cache(file_path, audio_name, stream)
+            await self._send_from_local_cache(file_path, audio_name, stream)
             raise web.Finish()
 
         audio_item = self._get_audio_item_from_cached_search(cache_key, audio_id)
@@ -54,7 +55,7 @@ class DownloadHandler(CachedHandler):
         if not await self._download_file(audio_item['mp3'], file_path):
             raise web.HTTPError(404)
 
-        await self._download_from_local_cache(file_path, audio_name, stream)
+        await self._send_from_local_cache(file_path, audio_name, stream)
 
     # TODO add proxy support
     @staticmethod
@@ -73,9 +74,9 @@ class DownloadHandler(CachedHandler):
 
         return True
 
-    async def _download_from_local_cache(self, path: str, file_name: str, stream: bool):
+    async def _send_from_local_cache(self, path: str, file_name: str, stream: bool):
         logger.debug('Sending file from local storage [streaming={}]: {}'.format(stream, file_name))
-        if self._check_is_bad_mp3(path):
+        if not self._check_valid_mp3(path):
             raise web.HTTPError(404)
 
         self._set_headers(path, file_name)
@@ -102,13 +103,9 @@ class DownloadHandler(CachedHandler):
         return stat_result[stat.ST_SIZE]
 
     @staticmethod
-    def _get_content(path: str):
+    def _get_content(path: str, chunk_size=64 * 1024):
         with open(path, 'rb') as f:
-            chunk_size = 64 * 1024
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
+            for chunk in iter(lambda: f.read(chunk_size), b''):
                 yield chunk
 
     def _get_audio_item_from_cached_search(self, cache_key: str, audio_id: str):
@@ -142,18 +139,32 @@ class DownloadHandler(CachedHandler):
     @staticmethod
     def _format_audio_name(audio_item: Dict):
         name = '{} - {}'.format(audio_item['artist'], audio_item['title'])
-        # TODO sanitize
+        name = sanitize(name, to_lower=False, alpha_numeric_only=False)
         return '{}.mp3'.format(name)
 
     @staticmethod
-    def _check_is_bad_mp3(path: str):
+    def _check_valid_mp3(path: str):
         if not os.path.exists(path):
-            return True
+            logger.error('Missing file: {}'.format(path))
+            return False
 
-        # TODO checks
-        # valid_mimes = ['audio/mpeg', 'audio/mp3', 'application/octet-stream']
+        valid_mimes = ['audio/mpeg', 'audio/mp3', 'application/octet-stream']
+        if magic.from_file(path, mime=True) not in valid_mimes:
+            logger.error('Invalid mp3: bad mime-type. Deleting: {}'.format(path))
+            os.remove(path)
+            return False
 
-        return False
+        bad_md5_hashes = [
+            '9d6ddee7a36a6b1b638c2ca1e26ad46e',
+            '8efd23e1cf7989a537a8bf0fb3ed7f62',
+            '21a9fef2f321de657d7b54985be55888'
+        ]
+        if md5_file(path) in bad_md5_hashes:
+            logger.error('Invalid mp3: bad md5. Deleting: {}'.format(path))
+            os.remove(path)
+            return False
+
+        return True
 
 
 # noinspection PyAbstractClass
