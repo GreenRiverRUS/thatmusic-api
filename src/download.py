@@ -23,8 +23,8 @@ class DownloadHandler(CachedHandler):
         self._cache_path = PATHS['mp3']
         os.makedirs(self._cache_path, exist_ok=True)
 
-    @logged(logger)
     @web.addslash
+    @logged(logger)
     async def get(self, *args, **kwargs):
         await self.download(kwargs['key'], kwargs['id'], stream=False)
 
@@ -169,7 +169,7 @@ class DownloadHandler(CachedHandler):
 
 # noinspection PyAbstractClass
 class StreamHandler(DownloadHandler):
-    @logged(logger)
     @web.addslash
+    @logged(logger)
     async def get(self, *args, **kwargs):
         await self.download(kwargs['key'], kwargs['id'], stream=True)

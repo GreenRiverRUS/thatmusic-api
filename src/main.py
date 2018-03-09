@@ -4,6 +4,10 @@ from tornado.web import url, Application
 from download import DownloadHandler, StreamHandler
 from search import SearchHandler
 from session import VkSession, AuthHandler, AuthSecondStepHandler
+from utils import setup_logger
+
+
+logger = setup_logger('main')
 
 
 def main():
@@ -24,6 +28,7 @@ def main():
         vk_session=vk_session
     )
     app.listen(8000)
+    logger.info('Starting...')
     loop.run_forever()
 
 

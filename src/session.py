@@ -204,6 +204,7 @@ class VkSession:
         return response
 
 
+# TODO Change auth to web-form
 class AuthHandler(BasicHandler):
     @web.addslash
     @logged(logger)

@@ -4,9 +4,9 @@ import os
 MAX_AUTH_RETRIES = 3
 
 PATHS = {
-    'cookie': 'cookies',
+    'cookie': '/auth/cookies',
     'mp3': '/cache/audio_data',
-    'nodejs': os.getenv('NODEJS_PATH', 'node'),
+    'nodejs': os.getenv('NODEJS_PATH', 'nodejs'),
     'decode-js': 'decode.js',
 }
 
@@ -23,7 +23,7 @@ HASH = {
 CACHE_SETTINGS = {
     'cache.regions': 'search_pages, audio_items',
     'cache.search_pages.type': 'memory',
-    'cache.search_pages.expire': 24 * 60,  # in minutes
+    'cache.search_pages.expire': 24 * 60 * 60,  # in seconds
     'cache.audio_items.type': 'dbm',
     'cache.audio_items.data_dir': '/cache/audio_items',
     'cache.audio_items.expire': None  # never

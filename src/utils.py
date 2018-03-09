@@ -124,7 +124,7 @@ def sanitize(string, to_lower: bool = True, alpha_numeric_only: bool = False, tr
         bad_chars = ['~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '=', '+',
                      '[', '{', ']', '}', '\\', '|', ';', ':', '"', "'", '—', '–', ',', '<', '>', '/', '?',
                      '‘', '’', '“', '”']
-        string = re.sub(r'|'.join(bad_chars), '', string)
+        string = re.sub(r'|'.join(map(re.escape, bad_chars)), '', string)
 
     string = string.strip()
 
