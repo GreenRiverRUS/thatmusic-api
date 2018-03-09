@@ -8,7 +8,10 @@ import aiohttp
 from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
 
-from utils import decode_vk_mp3_url, uni_hash
+from utils import decode_vk_mp3_url, uni_hash, setup_logger, logged
+
+
+logger = setup_logger('download')
 
 
 # TODO add S3 support
@@ -19,6 +22,7 @@ class DownloadHandler(CachedHandler):
         self._cache_path = PATHS['mp3']
         os.makedirs(self._cache_path, exist_ok=True)
 
+    @logged(logger)
     @web.addslash
     async def get(self, *args, **kwargs):
         await self.download(kwargs['key'], kwargs['id'], stream=False)
@@ -30,6 +34,7 @@ class DownloadHandler(CachedHandler):
         file_path = self._build_file_path(audio_id)
 
         if os.path.exists(file_path):
+            logger.debug('Audio file already exist')
             audio_item = self._get_audio_item_cache(audio_id)
             if audio_item is None:
                 audio_item = self._get_audio_item_from_cached_search(cache_key, audio_id)
@@ -54,6 +59,7 @@ class DownloadHandler(CachedHandler):
     # TODO add proxy support
     @staticmethod
     async def _download_file(url: str, path: str):
+        logger.debug('Downloading from vk: {}'.format(url))
         try:
             with open(path, 'wb') as f:
                 async with aiohttp.ClientSession() as session:
@@ -68,6 +74,7 @@ class DownloadHandler(CachedHandler):
         return True
 
     async def _download_from_local_cache(self, path: str, file_name: str, stream: bool):
+        logger.debug('Sending file from local storage [streaming={}]: {}'.format(stream, file_name))
         if self._check_is_bad_mp3(path):
             raise web.HTTPError(404)
 
@@ -105,6 +112,7 @@ class DownloadHandler(CachedHandler):
                 yield chunk
 
     def _get_audio_item_from_cached_search(self, cache_key: str, audio_id: str):
+        logger.debug('Getting audio item from search cache')
         cached_search_result = self._get_cached_search_result(cache_key)
         if cached_search_result is None:
             return None
@@ -120,7 +128,9 @@ class DownloadHandler(CachedHandler):
         self._cache_audio_item(audio_item)
 
         if DOWNLOAD_SETTINGS['mp3_decoder_enabled']:
-            audio_item['mp3'] = decode_vk_mp3_url(audio_item['mp3'], audio_item['user_id'])
+            decoded_mp3_url = decode_vk_mp3_url(audio_item['mp3'], audio_item['user_id'])
+            logger.debug('Decoded mp3 url'.format(decoded_mp3_url))
+            audio_item['mp3'] = decoded_mp3_url
         return audio_item
 
     @staticmethod
@@ -148,6 +158,7 @@ class DownloadHandler(CachedHandler):
 
 # noinspection PyAbstractClass
 class StreamHandler(DownloadHandler):
+    @logged(logger)
     @web.addslash
     async def get(self, *args, **kwargs):
         await self.download(kwargs['key'], kwargs['id'], stream=True)
