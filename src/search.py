@@ -50,7 +50,7 @@ class SearchHandler(BasicHandler, CachedHandler):
             })
 
     async def search(self, query: str, page: int):
-        cache_key = self._get_search_cache_key(query, page)
+        cache_key = self._get_search_cache_key(query, page)  # TODO do not cache popular
         cached_result = self._get_cached_search_result(cache_key)
         if cached_result is not None:
             return self._transform_search_response(query, page, cached_result)

@@ -22,8 +22,7 @@ def main():
             url(r'/dl/(?P<key>[^\/]+)/(?P<id>[^\/]+)/?', DownloadHandler, name='download'),
             # url(r'/dl/(?P<key>[^\/]+)/(?P<id>[^\/]+)/(?P<bitrate>[^\/]+)/?',
             #     BitrateDownloadHandler, name='bitrate_download'),
-            url(r'/stream/(?P<key>[^\/]+)/(?P<id>[^\/]+)/?', StreamHandler, name='stream'),
-            # url(r'/bytes/(?P<key>[^\/]+)/(?P<id>[^\/]+)/?', BytesHandler, name='bytes')
+            url(r'/stream/(?P<key>[^\/]+)/(?P<id>[^\/]+)/?', StreamHandler, name='stream')
         ],
         vk_session=vk_session
     )
