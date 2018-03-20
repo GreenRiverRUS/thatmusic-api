@@ -13,4 +13,4 @@ services:
       - auth_data:/auth
       - audio_cache:/cache
     ports:
-      - 8000:8000
+      - ${CONTAINER_PORT}:8000
