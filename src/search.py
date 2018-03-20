@@ -104,7 +104,7 @@ class SearchHandler(BasicHandler, CachedHandler):
         for audio in html_tree.select_one('#au_search_items').select('.audio_item'):  # type: Tag
             artist = audio.select_one('.ai_artist').text
             title = audio.select_one('.ai_title').text
-            duration = audio.select_one('.ai_dur')['data-dur']
+            duration = int(audio.select_one('.ai_dur')['data-dur'])
             mp3 = audio.select_one('input[type=hidden]')['value']
 
             audio_id = audio['data-id'].rsplit('_', maxsplit=1)[0]
@@ -132,10 +132,12 @@ class SearchHandler(BasicHandler, CachedHandler):
             stream_url = self.reverse_full_url('stream', cache_key, audio['id'])
             artist = self._clean_audio_string(audio['artist'])
             title = self._clean_audio_string(audio['title'])
+            duration = audio['duration']
 
             audio = {
                 'artist': artist,
                 'title': title,
+                'duration': duration,
                 'download': download_url,
                 'stream': stream_url
             }
