@@ -36,23 +36,23 @@ class DownloadHandler(CachedHandler):
 
         if os.path.exists(file_path):
             logger.debug('Audio file already exist')
-            audio_item = self._get_audio_item_cache(audio_id)
-            if audio_item is None:
-                audio_item = self._get_audio_item_from_cached_search(cache_key, audio_id)
-            if audio_item is None:
+            audio_info = self._get_audio_info_cache(audio_id)
+            if audio_info is None:
+                audio_info = self._get_audio_info_from_cached_search(cache_key, audio_id)
+            if audio_info is None:
                 audio_name = '{}.mp3'.format(audio_id)
             else:
-                audio_name = self._format_audio_name(audio_item)
+                audio_name = self._format_audio_name(audio_info)
 
             await self._send_from_local_cache(file_path, audio_name, stream)
             raise web.Finish()
 
-        audio_item = self._get_audio_item_from_cached_search(cache_key, audio_id)
-        if audio_item is None:
+        audio_info = self._get_audio_info_from_cached_search(cache_key, audio_id)
+        if audio_info is None:
             raise web.HTTPError(404)
-        audio_name = self._format_audio_name(audio_item)
+        audio_name = self._format_audio_name(audio_info)
 
-        if not await self._download_file(audio_item['mp3'], file_path):
+        if not await self._download_audio(audio_info['mp3'], file_path):
             raise web.HTTPError(404)
 
         await self._send_from_local_cache(file_path, audio_name, stream)
@@ -106,27 +106,27 @@ class DownloadHandler(CachedHandler):
             for chunk in iter(lambda: f.read(chunk_size), b''):
                 yield chunk
 
-    def _get_audio_item_from_cached_search(self, cache_key: str, audio_id: str):
+    def _get_audio_info_from_cached_search(self, cache_key: str, audio_id: str):
         logger.debug('Getting audio item from search cache')
         cached_search_result = self._get_cached_search_result(cache_key)
         if cached_search_result is None:
             return None
 
-        audio_item = None
+        audio_info = None
         for item in cached_search_result:
             if item['id'] == audio_id:
-                audio_item = item
+                audio_info = item
                 break
-        if audio_item is None:
+        if audio_info is None:
             return None
 
-        self._cache_audio_item(audio_item)
+        self._cache_audio_info(audio_info)
 
         if DOWNLOAD_SETTINGS['mp3_decoder_enabled']:
-            decoded_mp3_url = decode_vk_mp3_url(audio_item['mp3'], audio_item['user_id'])
+            decoded_mp3_url = decode_vk_mp3_url(audio_info['mp3'], audio_info['user_id'])
             logger.debug('Decoded mp3 url'.format(decoded_mp3_url))
-            audio_item['mp3'] = decoded_mp3_url
-        return audio_item
+            audio_info['mp3'] = decoded_mp3_url
+        return audio_info
 
     @staticmethod
     def _build_file_path(audio_id: str):
@@ -135,8 +135,8 @@ class DownloadHandler(CachedHandler):
         return file_path
 
     @staticmethod
-    def _format_audio_name(audio_item: Dict):
-        name = '{} - {}'.format(audio_item['artist'], audio_item['title'])
+    def _format_audio_name(audio_info: Dict):
+        name = '{} - {}'.format(audio_info['artist'], audio_info['title'])
         name = sanitize(name, to_lower=False, alpha_numeric_only=False)
         return '{}.mp3'.format(name)
 

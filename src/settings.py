@@ -21,12 +21,12 @@ HASH = {
 }
 
 CACHE_SETTINGS = {
-    'cache.regions': 'search_pages, audio_items',
+    'cache.regions': 'search_pages, audio_info',
     'cache.search_pages.type': 'memory',
     'cache.search_pages.expire': 24 * 60 * 60,  # in seconds
-    'cache.audio_items.type': 'dbm',
-    'cache.audio_items.data_dir': '/cache/audio_items',
-    'cache.audio_items.expire': None  # never
+    'cache.audio_info.type': 'dbm',
+    'cache.audio_info.data_dir': '/cache/audio_info',
+    'cache.audio_info.expire': None  # never
 }
 
 SEARCH_SETTINGS = {

@@ -19,7 +19,7 @@ class CachedHandler(RequestHandler):
             **parse_cache_config_options(CACHE_SETTINGS)
         )
         self._search_pages_cache = cache_manager.get_cache_region('default', 'search_pages')
-        self._audio_items_cache = cache_manager.get_cache_region('default', 'audio_items')
+        self._audio_info_cache = cache_manager.get_cache_region('default', 'audio_info')
 
     @staticmethod
     def _get_search_cache_key(query: str, page: int):
@@ -40,14 +40,14 @@ class CachedHandler(RequestHandler):
         logger.debug('Store search result into cache...')
         self._search_pages_cache.put(cache_key, result)
 
-    def _get_audio_item_cache(self, audio_id: str):
+    def _get_audio_info_cache(self, audio_id: str):
         logger.debug('Getting audio item from cache: {}'.format(audio_id))
         try:
-            return self._audio_items_cache.get(audio_id)
+            return self._audio_info_cache.get(audio_id)
         except KeyError:
             logger.debug('Cache miss')
             return None
 
-    def _cache_audio_item(self, item: Dict):
+    def _cache_audio_info(self, item: Dict):
         logger.debug('Store audio item into cache: {}'.format(item['id']))
-        self._audio_items_cache.put(item['id'], item)
+        self._audio_info_cache.put(item['id'], item)

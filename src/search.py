@@ -61,10 +61,10 @@ class SearchHandler(BasicHandler, CachedHandler):
             response = await self._get_search_results(
                 query, offset=(i + 1) * page * SEARCH_SETTINGS['page_size']
             )
-            curr_result = self._get_audio_items(response)
-            if not len(curr_result):
+            audio_items = self._get_audio_items(response)
+            if not len(audio_items):
                 break
-            result += curr_result
+            result += audio_items
 
         self._cache_search_result(cache_key, result)
         return self._transform_search_response(query, page, result)
@@ -101,13 +101,13 @@ class SearchHandler(BasicHandler, CachedHandler):
         user_id = re.search(r'vk_id=(\d{1,20})', response).group(1)
 
         result = []
-        for audio in html_tree.select_one('#au_search_items').select('.audio_item'):  # type: Tag
-            artist = audio.select_one('.ai_artist').text
-            title = audio.select_one('.ai_title').text
-            duration = int(audio.select_one('.ai_dur')['data-dur'])
-            mp3 = audio.select_one('input[type=hidden]')['value']
+        for audio_item in html_tree.select_one('#au_search_items').select('.audio_item'):  # type: Tag
+            artist = audio_item.select_one('.ai_artist').text
+            title = audio_item.select_one('.ai_title').text
+            duration = int(audio_item.select_one('.ai_dur')['data-dur'])
+            mp3 = audio_item.select_one('input[type=hidden]')['value']
 
-            audio_id = audio['data-id'].rsplit('_', maxsplit=1)[0]
+            audio_id = audio_item['data-id'].rsplit('_', maxsplit=1)[0]
             audio_id = uni_hash(HASH['id'], audio_id)
 
             result.append({
