@@ -5,6 +5,8 @@ from typing import Dict
 from tornado import web
 import aiohttp
 import magic
+import eyed3
+from eyed3.id3 import ID3_V1
 
 from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
@@ -52,22 +54,31 @@ class DownloadHandler(CachedHandler):
             raise web.HTTPError(404)
         audio_name = self._format_audio_name(audio_info)
 
-        if not await self._download_audio(audio_info['mp3'], file_path):
+        if not await self._download_audio(audio_info, file_path):
             raise web.HTTPError(404)
 
         await self._send_from_local_cache(file_path, audio_name, stream)
 
     # TODO add proxy support
     @staticmethod
-    async def _download_file(url: str, path: str):
-        logger.debug('Downloading from vk: {}'.format(url))
+    async def _download_audio(audio_info: Dict, path: str):
+        logger.debug('Downloading from vk: {}'.format(audio_info['mp3']))
         try:
             with open(path, 'wb') as f:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(url, timeout=DOWNLOAD_SETTINGS['timeout']) as response:
+                    async with session.get(
+                        audio_info['mp3'],
+                        timeout=DOWNLOAD_SETTINGS['timeout']
+                    ) as response:
                         async for chunk in response.content.iter_chunked(64 * 1024):
                             f.write(chunk)
-        except aiohttp.ClientError:
+
+            audio = eyed3.load(path)
+            audio.initTag(version=ID3_V1)
+            audio.tag.title = audio_info['title']
+            audio.tag.artist = audio_info['artist']
+            audio.tag.save(version=ID3_V1)
+        except (aiohttp.ClientError, IOError):
             if os.path.exists(path):
                 os.remove(path)
             return False
