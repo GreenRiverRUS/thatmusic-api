@@ -127,6 +127,7 @@ def sanitize(string, to_lower: bool = True, alpha_numeric_only: bool = False, tr
         string = re.sub(r'|'.join(map(re.escape, bad_chars)), '', string)
 
     string = string.strip()
+    string = re.sub(r'\s+', ' ', string)
 
     if to_lower:
         string = string.lower()
