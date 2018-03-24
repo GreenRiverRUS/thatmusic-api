@@ -1,13 +1,8 @@
-import os
-
-
 MAX_AUTH_RETRIES = 3
 
 PATHS = {
     'cookie': '/auth/cookies',
-    'mp3': '/cache/audio_data',
-    'nodejs': os.getenv('NODEJS_PATH', 'nodejs'),
-    'decode-js': 'decode.js',
+    'mp3': '/cache/audio_data'
 }
 
 AUTH_ACCOUNTS = [

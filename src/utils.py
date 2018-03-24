@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import re
-import subprocess
 from functools import wraps
 from typing import Union, Optional
 from urllib.parse import urljoin
@@ -9,8 +8,6 @@ import binascii
 import logging
 
 from tornado import web
-
-from settings import PATHS
 
 
 basic_stream_handler = logging.StreamHandler()
@@ -107,14 +104,6 @@ def uni_hash(hash_func: str, string):
         return md5(string)
 
     raise ValueError('Unknown hash function: {}'.format(hash_func))
-
-
-def decode_vk_mp3_url(url: str, user_id: str):
-    nodejs = PATHS['nodejs']
-    decoder_js = PATHS['decode-js']
-
-    process = subprocess.run([nodejs, decoder_js, url, user_id], stdout=subprocess.PIPE)
-    return process.stdout.decode()
 
 
 def sanitize(string, to_lower: bool = True, alpha_numeric_only: bool = False, truncate: Optional[int] = None):

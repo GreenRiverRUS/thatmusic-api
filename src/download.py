@@ -11,7 +11,8 @@ from eyed3.id3 import ID3_V1
 from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
 
-from utils import decode_vk_mp3_url, uni_hash, sanitize, setup_logger, logged, md5_file
+from utils import uni_hash, sanitize, setup_logger, logged, md5_file
+from decode import decode_vk_mp3_url
 
 
 logger = setup_logger('download')
@@ -134,8 +135,12 @@ class DownloadHandler(CachedHandler):
         self._cache_audio_info(audio_info)
 
         if DOWNLOAD_SETTINGS['mp3_decoder_enabled']:
+            logger.debug('Decoding mp3 url')
             decoded_mp3_url = decode_vk_mp3_url(audio_info['mp3'], audio_info['user_id'])
-            logger.debug('Decoded mp3 url'.format(decoded_mp3_url))
+            if decoded_mp3_url is None:
+                logger.error('Cannot decode url: {}'.format(audio_info['mp3']))
+                logger.debug(decoded_mp3_url)
+                raise web.HTTPError(502)
             audio_info['mp3'] = decoded_mp3_url
         return audio_info
 
