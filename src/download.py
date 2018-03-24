@@ -38,7 +38,7 @@ class DownloadHandler(CachedHandler):
         file_path = self._build_file_path(audio_id)
 
         if os.path.exists(file_path):
-            logger.debug('Audio file already exist')
+            logger.debug('Audio file already exist: {}'.format(file_path))
             audio_info = self._get_audio_info_cache(audio_id)
             if audio_info is None:
                 audio_info = self._get_audio_info_from_cached_search(cache_key, audio_id)
@@ -56,7 +56,7 @@ class DownloadHandler(CachedHandler):
         audio_name = self._format_audio_name(audio_info)
 
         if not await self._download_audio(audio_info, file_path):
-            raise web.HTTPError(404)
+            raise web.HTTPError(502)
 
         await self._send_from_local_cache(file_path, audio_name, stream)
 
@@ -98,6 +98,7 @@ class DownloadHandler(CachedHandler):
                 await self.flush()
         if not stream:
             await self.flush()
+        self.finish()
 
     def _set_headers(self, path: str, file_name: str, stream: bool):
         self.set_header('Cache-Control', 'private')
