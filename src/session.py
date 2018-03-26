@@ -100,6 +100,11 @@ class VkSession:
 
     async def _try_auth(self):
         self._auth_retries += 1
+
+        if self._auth_retries > MAX_AUTH_RETRIES:
+            logger.error('Reached max auth retries')
+            raise UnableToAuthorize()
+
         self._cookie_jar.clear()
 
         async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:
@@ -119,17 +124,8 @@ class VkSession:
 
     async def auth(self):
         logger.debug('Authorizing (attempt={})'.format(self._auth_retries))
-        if not self._has_cookie:
-            response = await self._try_auth()
-        else:
-            async with aiohttp.ClientSession(cookie_jar=self._cookie_jar) as session:
-                async with session.get(vk_url('feed')) as response:
-                    response = await response.text()
-
         while True:
-            if self._auth_retries >= MAX_AUTH_RETRIES:
-                logger.error('Reached max auth retries')
-                raise UnableToAuthorize()
+            response = await self._try_auth()
 
             if self._is_security_check(response):
                 logger.debug('Met security check')
@@ -137,8 +133,6 @@ class VkSession:
 
             if self._is_authenticated(response):
                 break
-
-            response = await self._try_auth()
 
     @staticmethod
     def _is_security_check(response: str) -> bool:
@@ -216,7 +210,7 @@ class AuthHandler(BasicHandler):
         except TwoFactorAuth as ex:
             self.write_result({
                 'success': 0,
-                'error': 'Unauthorized. Auth asks {}: {}'.format(
+                'error': 'Unauthorized. Enter {}: {}'.format(
                     ', '.join(ex.form_fields),
                     self.reverse_full_url('auth_second_factor')
                 ),
