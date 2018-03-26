@@ -5,13 +5,11 @@ from typing import Dict
 from tornado import web
 import aiohttp
 import magic
-import eyed3
-from eyed3.id3 import ID3_V1
 
 from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
 
-from utils import uni_hash, sanitize, setup_logger, logged, md5_file
+from utils import uni_hash, sanitize, setup_logger, logged, md5_file, set_id3_tag
 from decode import decode_vk_mp3_url
 
 
@@ -73,12 +71,7 @@ class DownloadHandler(CachedHandler):
                     ) as response:
                         async for chunk in response.content.iter_chunked(64 * 1024):
                             f.write(chunk)
-
-            audio = eyed3.load(path)
-            audio.initTag(version=ID3_V1)
-            audio.tag.title = audio_info['title']
-            audio.tag.artist = audio_info['artist']
-            audio.tag.save(version=ID3_V1)
+            set_id3_tag(path, audio_info)
         except (aiohttp.ClientError, IOError):
             if os.path.exists(path):
                 os.remove(path)

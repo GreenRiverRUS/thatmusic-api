@@ -2,11 +2,14 @@ import asyncio
 import hashlib
 import re
 from functools import wraps
-from typing import Union, Optional
+from typing import Union, Optional, Dict
 from urllib.parse import urljoin
 import binascii
 import logging
 
+import eyed3
+from eyed3.id3 import ID3_V1
+from unidecode import unidecode
 from tornado import web
 
 
@@ -115,6 +118,7 @@ def sanitize(string, to_lower: bool = True, alpha_numeric_only: bool = False, tr
                      '‘', '’', '“', '”']
         string = re.sub(r'|'.join(map(re.escape, bad_chars)), '', string)
 
+    string = unidecode(string)  # transliteration and other staff: converts to ascii
     string = string.strip()
     string = re.sub(r'\s+', ' ', string)
 
@@ -124,3 +128,11 @@ def sanitize(string, to_lower: bool = True, alpha_numeric_only: bool = False, tr
         string = string[:truncate]
 
     return string
+
+
+def set_id3_tag(path: str, audio_info: Dict):
+    audio = eyed3.load(path)
+    audio.initTag(version=ID3_V1)
+    audio.tag.title = unidecode(audio_info['title']).strip()
+    audio.tag.artist = unidecode(audio_info['artist']).strip()
+    audio.tag.save(version=ID3_V1)
