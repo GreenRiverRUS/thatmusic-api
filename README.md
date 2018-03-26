@@ -36,9 +36,9 @@ Search results are cached for 24 hours by default.
 
 # Downloads & Streams
 
-`https://thatmusic.example/dl/{search_hash}/{audio_hash}` (force download with proper file name (`Artist - Title.mp3`))
+`https://thatmusic.example/dl/{search_hash}/{audio_hash}` (downloads with proper file name `Artist - Title.mp3`)
 
-`https://thatmusic.example/stream/{search_hash}/{audio_hash}` (redirects to mp3 file)
+`https://thatmusic.example/stream/{search_hash}/{audio_hash}` (streams file)
 
 # Bitrate converting
 
