@@ -44,19 +44,17 @@ class DownloadHandler(CachedHandler):
                 audio_name = '{}.mp3'.format(audio_id)
             else:
                 audio_name = self._format_audio_name(audio_info)
+        else:
+            audio_info = self._get_audio_info_from_cached_search(cache_key, audio_id)
+            if audio_info is None:
+                raise web.HTTPError(404)
+            audio_name = self._format_audio_name(audio_info)
 
-            await self._send_from_local_cache(file_path, audio_name, stream)
-            raise web.Finish()
+            if not await self._download_audio(audio_info, file_path):
+                raise web.HTTPError(502)
 
-        audio_info = self._get_audio_info_from_cached_search(cache_key, audio_id)
-        if audio_info is None:
-            raise web.HTTPError(404)
-        audio_name = self._format_audio_name(audio_info)
-
-        if not await self._download_audio(audio_info, file_path):
+        if not await self._send_from_local_cache(file_path, audio_name, stream):
             raise web.HTTPError(502)
-
-        await self._send_from_local_cache(file_path, audio_name, stream)
 
     # TODO add proxy support
     @staticmethod
@@ -82,7 +80,7 @@ class DownloadHandler(CachedHandler):
     async def _send_from_local_cache(self, path: str, file_name: str, stream: bool):
         logger.debug('Sending file from local storage [streaming={}]: {}'.format(stream, file_name))
         if not self._check_valid_mp3(path):
-            raise web.HTTPError(404)
+            return False
 
         self._set_headers(path, file_name, stream)
         for chunk in self._get_content(path):
@@ -92,6 +90,7 @@ class DownloadHandler(CachedHandler):
         if not stream:
             await self.flush()
         self.finish()
+        return True
 
     def _set_headers(self, path: str, file_name: str, stream: bool):
         self.set_header('Cache-Control', 'private')
@@ -134,7 +133,7 @@ class DownloadHandler(CachedHandler):
             if decoded_mp3_url is None:
                 logger.error('Cannot decode url: {}'.format(audio_info['mp3']))
                 logger.debug(decoded_mp3_url)
-                raise web.HTTPError(502)
+                return None
             audio_info['mp3'] = decoded_mp3_url
         return audio_info
 
