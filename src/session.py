@@ -36,8 +36,15 @@ class AuthRequired(AuthError):
 
 
 class VkSession:
+    if 'ACCOUNTS' in os.environ:
+        auth_accounts = [
+            account_pair.split(':') for account_pair in os.environ['ACCOUNTS'].split(',')
+        ]
+    else:
+        auth_accounts = AUTH_ACCOUNTS
+
     def __init__(self):
-        self._auth_phone, self._auth_password = random.choice(AUTH_ACCOUNTS)  # type: str, str
+        self._auth_phone, self._auth_password = random.choice(self.auth_accounts)  # type: str, str
         self._auth_retries: int = 0
         self._saved_check_form: Optional[Dict] = None
 

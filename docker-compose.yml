@@ -9,6 +9,8 @@ services:
     build: src
     image: thatmusic_backend
     restart: always
+    env_file:
+      - .env
     volumes:
       - auth_data:/auth
       - audio_cache:/cache

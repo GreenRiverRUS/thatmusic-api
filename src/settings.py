@@ -6,7 +6,7 @@ PATHS = {
 }
 
 AUTH_ACCOUNTS = [
-    ('login', 'password')
+    ('login', 'password')  # login - phone number without '+' or email
 ]
 
 HASH = {
