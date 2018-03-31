@@ -10,7 +10,6 @@ from cache import CachedHandler
 from settings import PATHS, HASH, DOWNLOAD_SETTINGS
 
 from utils import uni_hash, sanitize, setup_logger, logged, md5_file, set_id3_tag
-from decode import decode_vk_mp3_url
 
 
 logger = setup_logger('download')
@@ -103,7 +102,9 @@ class DownloadHandler(CachedHandler):
     @staticmethod
     def _get_content_size(path: str):
         stat_result = os.stat(path)
-        return stat_result[stat.ST_SIZE]
+        size = stat_result[stat.ST_SIZE]
+        logger.debug('File size: {:.02f}MB'.format(size / 1024 / 1024))
+        return size
 
     @staticmethod
     def _get_content(path: str, chunk_size=64 * 1024):
@@ -126,15 +127,6 @@ class DownloadHandler(CachedHandler):
             return None
 
         self._cache_audio_info(audio_info)
-
-        if DOWNLOAD_SETTINGS['mp3_decoder_enabled']:
-            logger.debug('Decoding mp3 url')
-            decoded_mp3_url = decode_vk_mp3_url(audio_info['mp3'], audio_info['user_id'])
-            if decoded_mp3_url is None:
-                logger.error('Cannot decode url: {}'.format(audio_info['mp3']))
-                logger.debug(decoded_mp3_url)
-                return None
-            audio_info['mp3'] = decoded_mp3_url
         return audio_info
 
     @staticmethod

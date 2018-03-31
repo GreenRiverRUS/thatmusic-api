@@ -11,6 +11,7 @@ from cache import CachedHandler
 from session import VkSession, AuthRequired
 from settings import SEARCH_SETTINGS, HASH, ARTISTS
 from utils import BasicHandler, uni_hash, setup_logger, logged
+from decode import decode_vk_mp3_url
 
 
 logger = setup_logger('search')
@@ -105,18 +106,22 @@ class SearchHandler(BasicHandler, CachedHandler):
             artist = audio_item.select_one('.ai_artist').text
             title = audio_item.select_one('.ai_title').text
             duration = int(audio_item.select_one('.ai_dur')['data-dur'])
-            mp3 = audio_item.select_one('input[type=hidden]')['value']
+
+            encoded_mp3_url = audio_item.select_one('input[type=hidden]')['value']
+            mp3_url = decode_vk_mp3_url(encoded_mp3_url, user_id)
+            if mp3_url is None:
+                logger.error('Cannot decode url: {}'.format(encoded_mp3_url))
+                continue
 
             audio_id = audio_item['data-id'].rsplit('_', maxsplit=1)[0]
             audio_id = uni_hash(HASH['id'], audio_id)
 
             result.append({
                 'id': audio_id,
-                'user_id': user_id,
                 'artist': artist,
                 'title': title,
                 'duration': duration,
-                'mp3': mp3
+                'mp3': mp3_url
             })
 
         return result

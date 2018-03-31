@@ -36,7 +36,6 @@ SEARCH_SETTINGS = {
 }
 
 DOWNLOAD_SETTINGS = {
-    'mp3_decoder_enabled': True,
     'timeout': 60
 }
 
