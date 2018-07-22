@@ -1,25 +1,19 @@
 import random
 import re
 from typing import List, Dict
-from urllib.parse import quote
 
-from bs4 import BeautifulSoup
-from bs4.element import Tag
 from tornado import web
+import aiohttp
 
 from cache import CachedHandler
-from session import VkSession, AuthRequired
 from settings import SEARCH_SETTINGS, HASH, ARTISTS
-from utils import BasicHandler, uni_hash, setup_logger, logged
-from decode import decode_vk_mp3_url
+from utils import uni_hash, setup_logger, vk_url
 
 
-logger = setup_logger('search')
+class SearchHandler(CachedHandler):
+    logger = setup_logger('search')
 
-
-class SearchHandler(BasicHandler, CachedHandler):
     @web.addslash
-    @logged(logger)
     async def get(self, *args, **kwargs):
         query = self.get_argument('q', '')
         page = self.get_argument('page', '0')
@@ -28,106 +22,113 @@ class SearchHandler(BasicHandler, CachedHandler):
             if page < 0:
                 raise ValueError()
         except ValueError:
-            self.write_result({
-                'success': 0,
-                'error': '\'page\' must be a non-negative integer'
-            })
-            return
-
+            raise web.HTTPError(
+                status_code=400,
+                reason='\'page\' must be a non-negative integer'
+            )
         try:
-            data = await self.search(query, page)
+            captcha_kwargs = {
+                key: self.get_argument(key) for key in ('captcha_sid', 'captcha_key')
+            }
+        except web.MissingArgumentError:
+            captcha_kwargs = {}
 
-            self.write_result({
-                'success': 1,
-                'data': data
-            })
-        except AuthRequired:
-            self.write_result({
-                'success': 0,
-                'error': 'Unauthorized. Auth required: {}'.format(
-                    self.reverse_full_url('auth')
-                ),
-                'error_code': 401
-            })
+        data = await self.search(query, page, **captcha_kwargs)
+        self.write_result(data)
 
-    async def search(self, query: str, page: int):
-        cache_key = self._get_search_cache_key(query, page)  # TODO do not cache popular
+    async def search(self, query: str, page: int, **kwargs):
+        cache_key = self._get_search_cache_key(query, page)  # TODO do not cache random
         cached_result = self._get_cached_search_result(cache_key)
         if cached_result is not None:
             return self._transform_search_response(query, page, cached_result)
 
-        result = []
-        for i in range(SEARCH_SETTINGS['page_multiplier']):
-            logger.debug('Trying page {} (size={})...'.format(i, SEARCH_SETTINGS['page_size']))
-            response = await self._get_search_results(
-                query, offset=(i + 1) * page * SEARCH_SETTINGS['page_size']
-            )
-            audio_items = self._get_audio_items(response)
-            if not len(audio_items):
-                break
-            result += audio_items
+        response = await self._get_search_results(
+            query, offset=page * SEARCH_SETTINGS['page_size'], **kwargs
+        )
+        self._raise_for_error(response)
+        audio_items = self._get_audio_items(response)
 
-        self._cache_search_result(cache_key, result)
-        return self._transform_search_response(query, page, result)
+        self._cache_search_result(cache_key, audio_items)
+        return self._transform_search_response(query, page, audio_items)
 
-    async def _get_search_results(self, query: str, offset: int):
+    async def _get_search_results(self, query: str, offset: int, **kwargs):
         if not len(query):
-            if SEARCH_SETTINGS['popular_enabled']:
-                return await self._get_popular(offset)
             query = self._random_artist()
 
-        query = quote(query)
+        headers = {'User-Agent': SEARCH_SETTINGS['user_agent']}
+        params = {
+            'access_token': SEARCH_SETTINGS['access_token'],
+            'q': query,
+            'offset': offset,
+            'sort': 2,
+            'count': SEARCH_SETTINGS['page_size'],
+            'v': '5.71'
+        }
 
-        vk_session = self.settings['vk_session']  # type: VkSession
-        logger.debug('Requesting search page from vk...')
-        return await vk_session.get(
-            'audio?act=search&q={}&offset={}'.format(query, offset)
+        if 'captcha_key' in kwargs and 'captcha_sid' in kwargs:
+            params.update({
+                'captcha_sid': kwargs['captcha_sid'],
+                'captcha_key': kwargs['captcha_key']
+            })
+
+        self.logger.debug('Requesting search results (size={}) from vk...'.format(
+            SEARCH_SETTINGS['page_size']
+        ))
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                    url=vk_url('method/audio.search'),
+                    headers=headers,
+                    params=params
+            ) as response:
+                result = await response.json()
+
+        return result
+
+    def _raise_for_error(self, response: dict):
+        if 'error' not in response:
+            return
+        error_data = response['error']
+        error_message = '({code}) {message}'.format(
+            code=error_data['error_code'],
+            message=error_data['error_msg']
+        )
+        if error_data['error_code'] == 14:  # captcha
+            args = {
+                'captcha_sid': int(error_data['captcha_sid']),
+                'captcha_img': error_data['captcha_img']
+            }
+        else:
+            args = {}
+        self.logger.error(error_message)
+        raise web.HTTPError(
+            status_code=400,
+            reason=error_message,
+            args=args
         )
 
     @staticmethod
     def _random_artist():
         return random.choice(ARTISTS)
 
-    async def _get_popular(self, offset: int):
-        vk_session = self.settings['vk_session']  # type: VkSession
-        logger.debug('Searching popular in vk...')
-        return await vk_session.get(
-            'audio?act=popular&offset={}'.format(offset)
-        )
-
     @staticmethod
-    def _get_audio_items(response: str):
-        html_tree = BeautifulSoup(response, 'lxml')
-
-        user_id = re.search(r'vk_id=(\d{1,20})', response).group(1)
-
+    def _get_audio_items(response: dict):
         result = []
-        for audio_item in html_tree.select_one('#au_search_items').select('.audio_item'):  # type: Tag
-            artist = audio_item.select_one('.ai_artist').text
-            title = audio_item.select_one('.ai_title').text
-            duration = int(audio_item.select_one('.ai_dur')['data-dur'])
-
-            encoded_mp3_url = audio_item.select_one('input[type=hidden]')['value']
-            mp3_url = decode_vk_mp3_url(encoded_mp3_url, user_id)
-            if mp3_url is None:
-                logger.error('Cannot decode url: {}'.format(encoded_mp3_url))
+        for audio_item in response['response']['items']:
+            if not len(audio_item['url']):
                 continue
 
-            audio_id = audio_item['data-id'].rsplit('_', maxsplit=1)[0]
-            audio_id = uni_hash(HASH['id'], audio_id)
-
             result.append({
-                'id': audio_id,
-                'artist': artist,
-                'title': title,
-                'duration': duration,
-                'mp3': mp3_url
+                'id': uni_hash(HASH['id'], str(audio_item['id'])),
+                'artist': audio_item['artist'],
+                'title': audio_item['title'],
+                'duration': audio_item['duration'],
+                'mp3': audio_item['url']
             })
 
         return result
 
     def _transform_search_response(self, query: str, page: int, data: List[Dict]):
-        logger.debug('Transforming search response...')
+        self.logger.debug('Transforming search response...')
         sortable = not self._is_bad_match([query])
 
         head, tail = [], []

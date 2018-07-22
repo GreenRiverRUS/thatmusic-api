@@ -1,30 +1,28 @@
 import asyncio
+import logging
+
 from tornado.web import url, Application
 
 from download import DownloadHandler, StreamHandler
 from search import SearchHandler
-from session import VkSession, AuthHandler, AuthSecondStepHandler
 from utils import setup_logger
 
 
-logger = setup_logger('main')
+# Disable unnecessary logging
+logging.getLogger('tornado.general').disabled = True
+logging.getLogger('tornado.access').disabled = True
 
 
 def main():
+    logger = setup_logger('main')
     loop = asyncio.get_event_loop()
-    vk_session = VkSession()
 
     app = Application(
         handlers=[
-            url(r'/_auth/?', AuthHandler, name='auth'),
-            url(r'/_auth_second_factor/?', AuthSecondStepHandler, name='auth_second_factor'),
             url(r'/search/?', SearchHandler, name='search'),
             url(r'/dl/(?P<key>[^\/]+)/(?P<id>[^\/]+)/?', DownloadHandler, name='download'),
-            # url(r'/dl/(?P<key>[^\/]+)/(?P<id>[^\/]+)/(?P<bitrate>[^\/]+)/?',
-            #     BitrateDownloadHandler, name='bitrate_download'),
             url(r'/stream/(?P<key>[^\/]+)/(?P<id>[^\/]+)/?', StreamHandler, name='stream')
-        ],
-        vk_session=vk_session
+        ]
     )
     app.listen(8000)
     logger.info('Starting...')

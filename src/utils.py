@@ -1,7 +1,5 @@
-import asyncio
 import hashlib
 import re
-from functools import wraps
 from typing import Union, Optional, Dict
 from urllib.parse import urljoin
 import binascii
@@ -12,27 +10,44 @@ from eyed3.id3 import ID3_V1
 from unidecode import unidecode
 from tornado import web
 
-
-basic_stream_handler = logging.StreamHandler()
-basic_stream_handler.setFormatter(logging.Formatter('%(levelname)-8s %(asctime)s %(message)s'))
-basic_stream_handler.setLevel(logging.DEBUG)
+from settings import LOG_LEVEL
 
 
 class BasicHandler(web.RequestHandler):
-    def get(self, *args, **kwargs):
-        raise web.HTTPError(404)
+    logger = None
+
+    def prepare(self):
+        self.logger.debug('{} request from {}: {}'.format(
+            self.request.method.capitalize(),
+            self.request.remote_ip,
+            self.request.uri)
+        )
+        self.logger.debug('Request body: {}'.format(self.request.body.decode()))
+
+    def on_finish(self):
+        self.log_request()
 
     def write_result(self, result):
-        if result['success'] == 0:
-            error_code = result.pop('error_code', 400)
-            self.set_status(error_code)
-            result = dict(result)
-            result.update({'error_code': error_code})
-        self.finish(result)
+        self.finish({'success': 1, 'data': result})
 
     def write_error(self, status_code, **kwargs):
-        self.set_status(status_code)
-        self.finish({'success': 0, 'error': self._reason, 'error_code': status_code})
+        result = {'success': 0, 'error': self._reason, 'error_code': status_code}
+        if 'exc_info' in kwargs:
+            exception = kwargs['exc_info'][1]
+            if isinstance(exception, web.HTTPError):
+                result.update(exception.args)  # TODO
+        self.finish(result)
+
+    def log_request(self):
+        self.logger.info(
+            '{remote_ip} {method} {request_uri} => HTTP: {status_code} ({time:.0f} ms)'.format(
+                remote_ip=self.request.remote_ip,
+                method=self.request.method.upper(),
+                request_uri=self.request.uri,
+                status_code=self.get_status(),
+                time=1000.0 * self.request.request_time()
+            )
+        )
 
     def data_received(self, chunk):
         pass
@@ -45,39 +60,18 @@ class BasicHandler(web.RequestHandler):
 def setup_logger(name, lvl=logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(lvl)
+    basic_stream_handler = logging.StreamHandler()
+    basic_stream_handler.setFormatter(
+        logging.Formatter('%(levelname)-8s %(asctime)s %(message)s')
+    )
+    basic_stream_handler.setLevel(LOG_LEVEL)
     logger.addHandler(basic_stream_handler)
     logger.propagate = False
     return logger
 
 
-def logged(logger=setup_logger('default')):
-    def wrapper(method):
-        if asyncio.iscoroutinefunction(method):
-            @wraps(method)
-            async def wrapped(*args, **kwargs):
-                self = args[0]  # type: BasicHandler
-                logger.info('{} request from {}: {}'.format(method.__name__.capitalize(),
-                                                            self.request.remote_ip,
-                                                            self.request.uri))
-                logger.info('Request body: {}'.format(self.request.body.decode()))
-                await method(*args, **kwargs)
-                logger.info('Response sent')
-        else:
-            @wraps(method)
-            def wrapped(*args, **kwargs):
-                self = args[0]  # type: BasicHandler
-                logger.info('{} request from {}: {}'.format(method.__name__.capitalize(),
-                                                            self.request.remote_ip,
-                                                            self.request.uri))
-                logger.info('Request body: {}'.format(self.request.body.decode()))
-                method(*args, **kwargs)
-                logger.info('Response sent')
-        return wrapped
-    return wrapper
-
-
 def vk_url(path: str):
-    return urljoin('https://m.vk.com/', path)
+    return urljoin('https://api.vk.com/', path)
 
 
 def crc32(string: Union[str, bytes]):
@@ -90,14 +84,6 @@ def md5(string: Union[str, bytes]):
     if isinstance(string, str):
         string = string.encode()
     return hashlib.md5(string).hexdigest()
-
-
-def md5_file(file_name, chunk_size=4096):
-    hash_md5 = hashlib.md5()
-    with open(file_name, 'rb') as f:
-        for chunk in iter(lambda: f.read(chunk_size), b''):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
 
 
 def uni_hash(hash_func: str, string):
