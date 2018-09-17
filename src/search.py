@@ -60,7 +60,7 @@ class SearchHandler(CachedHandler):
             'access_token': SEARCH_SETTINGS['access_token'],
             'q': query,
             'offset': offset,
-            'sort': 2,
+            # 'sort': 2,
             'count': SEARCH_SETTINGS['page_size'],
             'v': '5.71'
         }
