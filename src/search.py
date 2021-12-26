@@ -62,7 +62,7 @@ class SearchHandler(CachedHandler):
             'offset': offset,
             # 'sort': 2,
             'count': SEARCH_SETTINGS['page_size'],
-            'v': '5.71'
+            'v': '5.72'
         }
 
         if 'captcha_key' in kwargs and 'captcha_sid' in kwargs:
